@@ -1,0 +1,191 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: customers
+    // Fields: id, name, phone, city, address, partnerId, uid
+    //
+    // Collection: partners
+    // Fields: id, name, phone, address, observations, uid
+    //
+    // Collection: pets
+    // Fields: customerId, name, size, breed, uid
+    //
+    // Collection: appointments
+    // Fields: id, customerId, petIds, dateTime, originCity, destinationCity, city, pickupAddress, destinations, type, value, petCount, status, discount, uid
+    //
+    // Collection: calculations
+    // Fields: customerId, customerName, originCity, destinationCity, distance, fuelPrice, carDailyRate, carDays, toll, hotelRate, hotelDays, food, workHours, total, discount, timestamp, status, uid
+    // Collection: monthlyPackages
+    // Fields: customerId, customerName, totalValue, daysPerMonth, startDate, status, abatementAmount, extraDiscount, uid
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        (request.auth.token.email == "christiansher25@gmail.com" && request.auth.token.email_verified == true) ||
+        (request.auth.token.email == "sher343537@levapet.com") ||
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidCustomer(data) {
+      return data.id is string && data.id.size() < 20 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.phone is string && data.phone.size() > 0 && data.phone.size() < 30 &&
+             data.city is string && data.city.size() < 100 &&
+             data.address is string && data.address.size() < 200 &&
+             (!('partnerId' in data) || (data.partnerId is string && data.partnerId.size() < 50)) &&
+             (!('loyaltyCycleStart' in data) || (data.loyaltyCycleStart is string && data.loyaltyCycleStart.size() < 50)) &&
+             (!('loyaltyCount' in data) || (data.loyaltyCount is number && data.loyaltyCount >= 0)) &&
+             (!('loyaltyRewardAvailable' in data) || (data.loyaltyRewardAvailable is bool)) &&
+             data.uid is string && data.uid.size() < 50;
+    }
+
+    function isValidPartner(data) {
+      return data.id is string && data.id.size() < 20 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.phone is string && data.phone.size() > 0 && data.phone.size() < 30 &&
+             data.address is string && data.address.size() < 200 &&
+             (!('observations' in data) || (data.observations is string && data.observations.size() < 1000)) &&
+             data.uid is string && data.uid.size() < 50;
+    }
+
+    function isValidPet(data) {
+      return data.customerId is string && data.customerId.size() < 50 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.size in ["Pequeno", "Médio", "Grande"] &&
+             data.breed is string && data.breed.size() < 100 &&
+             data.uid is string && data.uid.size() < 50;
+    }
+
+    function isValidAppointment(data) {
+      return data.id is string && data.id.size() < 20 &&
+             data.customerId is string && data.customerId.size() < 50 &&
+             data.dateTime is string && data.dateTime.size() < 50 &&
+             data.city is string && data.city.size() < 100 &&
+             data.pickupAddress is string && data.pickupAddress.size() < 200 &&
+             data.type is string && data.type.size() < 100 &&
+             data.value is number && data.value >= 0 &&
+             data.petCount is number && data.petCount >= 0 &&
+             data.status in ["Pendente", "Atendido", "Pago", "Cancelado", "Recusado", "Rota Compartilhada"] &&
+             (!('packageId' in data) || (data.packageId is string && data.packageId.size() < 50)) &&
+             (!('isMonthly' in data) || (data.isMonthly is bool)) &&
+             (!('unitValue' in data) || (data.unitValue is number)) &&
+             (!('totalKm' in data) || (data.totalKm is number)) &&
+             (!('observations' in data) || (data.observations is string && data.observations.size() < 1000)) &&
+             data.uid is string && data.uid.size() < 50;
+    }
+
+    function isValidMonthlyPackage(data) {
+      return data.customerId is string && data.customerId.size() < 50 &&
+             data.customerName is string && data.customerName.size() < 100 &&
+             data.totalValue is number && data.totalValue >= 0 &&
+             data.daysPerMonth is number && data.daysPerMonth >= 0 &&
+             data.startDate is string && data.startDate.size() < 50 &&
+             data.status in ["Ativo", "Cancelado"] &&
+             (!('abatementAmount' in data) || (data.abatementAmount is number)) &&
+             (!('extraDiscount' in data) || (data.extraDiscount is number)) &&
+             data.uid is string && data.uid.size() < 50;
+    }
+
+    function isValidCalculation(data) {
+      return data.total is number && data.total >= 0 &&
+             data.distance is number && data.distance >= 0 &&
+             data.originCity is string && data.originCity.size() < 100 &&
+             data.destinationCity is string && data.destinationCity.size() < 100 &&
+             data.timestamp is string && data.timestamp.size() < 50 &&
+             data.uid is string && data.uid.size() < 50;
+    }
+
+    function isValidUser(data) {
+      return data.email is string && data.email.size() < 100 &&
+             data.role in ['user', 'admin'];
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+    match /customers/{customerId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidCustomer(request.resource.data) && request.resource.data.uid == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && isValidCustomer(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /partners/{partnerId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidPartner(request.resource.data) && request.resource.data.uid == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && isValidPartner(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /pets/{petId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidPet(request.resource.data) && request.resource.data.uid == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && isValidPet(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidAppointment(request.resource.data) && request.resource.data.uid == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && isValidAppointment(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /calculations/{calculationId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidCalculation(request.resource.data) && request.resource.data.uid == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && isValidCalculation(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /monthlyPackages/{packageId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidMonthlyPackage(request.resource.data) && request.resource.data.uid == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && isValidMonthlyPackage(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
+                   (request.resource.data.role == 'user' || (request.resource.data.role == 'admin' && request.auth.token.email == "sher343537@levapet.com"));
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data) && (isAdmin() || request.resource.data.role == resource.data.role);
+    }
+  }
+}

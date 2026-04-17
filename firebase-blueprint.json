@@ -1,0 +1,134 @@
+{
+  "entities": {
+    "Customer": {
+      "title": "Customer",
+      "description": "Dados do cliente e seus pets.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Código automático do cliente (ex: C1234)" },
+        "name": { "type": "string", "description": "Nome completo do cliente" },
+        "phone": { "type": "string", "description": "Telefone de contato" },
+        "city": { "type": "string", "description": "Cidade de residência" },
+        "address": { "type": "string", "description": "Endereço completo para busca" },
+        "partnerId": { "type": "string", "description": "ID do parceiro associado (opcional)" },
+        "loyaltyCycleStart": { "type": "string", "format": "date-time", "description": "Início do ciclo de fidelidade (6 meses)" },
+        "loyaltyCount": { "type": "number", "description": "Contador de atendimentos no ciclo atual" },
+        "loyaltyRewardAvailable": { "type": "boolean", "description": "Indica se o cliente tem um desconto de 50% disponível" },
+        "uid": { "type": "string", "description": "ID do usuário que cadastrou o cliente" }
+      },
+      "required": ["id", "name", "phone", "uid"]
+    },
+    "Partner": {
+      "title": "Partner",
+      "description": "Dados de um parceiro do sistema.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Código automático do parceiro (ex: P1234)" },
+        "name": { "type": "string", "description": "Nome do parceiro" },
+        "phone": { "type": "string", "description": "Telefone de contato" },
+        "address": { "type": "string", "description": "Endereço do parceiro" },
+        "observations": { "type": "string", "description": "Observações adicionais" },
+        "uid": { "type": "string", "description": "ID do usuário proprietário" }
+      },
+      "required": ["id", "name", "phone", "uid"]
+    },
+    "Pet": {
+      "title": "Pet",
+      "description": "Dados de um pet associado a um cliente.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string", "description": "ID do documento do cliente no Firestore" },
+        "name": { "type": "string", "description": "Nome do animal" },
+        "size": { "type": "string", "enum": ["Pequeno", "Médio", "Grande"], "description": "Porte do animal" },
+        "breed": { "type": "string", "description": "Raça ou SRD" },
+        "uid": { "type": "string", "description": "ID do usuário proprietário" }
+      },
+      "required": ["customerId", "name", "size", "uid"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Agendamento de transporte pet.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Código do atendimento (ex: A1234)" },
+        "customerId": { "type": "string", "description": "ID do documento do cliente" },
+        "petIds": { "type": "array", "items": { "type": "string" }, "description": "Lista de IDs dos documentos dos pets" },
+        "dateTime": { "type": "string", "format": "date-time", "description": "Data e hora do agendamento (ISO 8601)" },
+        "originCity": { "type": "string", "description": "Cidade de partida" },
+        "destinationCity": { "type": "string", "description": "Cidade de chegada" },
+        "city": { "type": "string", "description": "Cidade principal do trajeto" },
+        "pickupAddress": { "type": "string", "description": "Endereço exato da busca" },
+        "destinations": { "type": "array", "items": { "type": "string" }, "description": "Lista de endereços de destino (máx 3)" },
+        "type": { "type": "string", "enum": ["Clínica Veterinária", "Castração", "Mudança", "Estadual", "Municipal", "Outros", "Pacote mensal", "Rota Compartilhada"], "description": "Categoria do serviço" },
+        "value": { "type": "number", "description": "Valor total do serviço em reais" },
+        "petCount": { "type": "number", "description": "Número de animais transportados" },
+        "status": { "type": "string", "enum": ["Pendente", "Atendido", "Pago", "Cancelado", "Recusado", "Rota Compartilhada"], "description": "Estado atual do agendamento" },
+        "discount": { "type": "number", "description": "Valor do desconto concedido" },
+        "uid": { "type": "string", "description": "ID do usuário proprietário" }
+      },
+      "required": ["id", "customerId", "dateTime", "uid"]
+    },
+    "Calculation": {
+      "title": "Calculation",
+      "description": "Histórico de cálculos da calculadora de orçamento.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string", "description": "ID do cliente (opcional)" },
+        "customerName": { "type": "string", "description": "Nome do cliente (opcional)" },
+        "originCity": { "type": "string", "description": "Cidade de origem" },
+        "destinationCity": { "type": "string", "description": "Cidade de destino" },
+        "distance": { "type": "number", "description": "Distância total em km" },
+        "fuelPrice": { "type": "number", "description": "Preço do litro do combustível" },
+        "carDailyRate": { "type": "number", "description": "Custo fixo diário do veículo" },
+        "carDays": { "type": "number", "description": "Quantidade de dias de uso do veículo" },
+        "toll": { "type": "number", "description": "Custos com pedágio" },
+        "hotelRate": { "type": "number", "description": "Custo da diária de hotel" },
+        "hotelDays": { "type": "number", "description": "Quantidade de diárias de hotel" },
+        "food": { "type": "number", "description": "Custos com alimentação" },
+        "workHours": { "type": "number", "description": "Horas de trabalho estimadas" },
+        "total": { "type": "number", "description": "Valor total calculado" },
+        "discount": { "type": "number", "description": "Desconto simulado" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Data da simulação" },
+        "status": { "type": "string", "enum": ["Pendente", "Aprovado", "Recusado", "Cancelado", "Pago", "Rota Compartilhada"], "description": "Status da negociação" },
+        "uid": { "type": "string", "description": "ID do usuário proprietário" }
+      },
+      "required": ["total", "uid", "timestamp"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Dados do usuário do sistema.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["user", "admin"] }
+      },
+      "required": ["email", "role"]
+    },
+    "MonthlyPackage": {
+      "title": "Monthly Package",
+      "description": "Dados de um pacote mensal de atendimentos.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string", "description": "ID do documento do cliente" },
+        "customerName": { "type": "string", "description": "Nome do cliente para exibição rápida" },
+        "totalValue": { "type": "number", "description": "Valor total mensal do pacote" },
+        "daysPerMonth": { "type": "number", "description": "Quantidade de dias de atendimento por mês" },
+        "startDate": { "type": "string", "format": "date-time", "description": "Data de início ou renovação do pacote" },
+        "status": { "type": "string", "enum": ["Ativo", "Cancelado"], "description": "Status atual do pacote" },
+        "abatementAmount": { "type": "number", "description": "Valor acumulado de abatimento para o próximo mês" },
+        "extraDiscount": { "type": "number", "description": "Desconto extra aplicado manualmente na renovação" },
+        "uid": { "type": "string", "description": "ID do usuário proprietário" }
+      },
+      "required": ["customerId", "totalValue", "daysPerMonth", "startDate", "status", "uid"]
+    }
+  },
+  "firestore": {
+    "/customers/{customerId}": { "schema": "Customer", "description": "Coleção de clientes" },
+    "/partners/{partnerId}": { "schema": "Partner", "description": "Coleção de parceiros" },
+    "/pets/{petId}": { "schema": "Pet", "description": "Coleção de pets" },
+    "/appointments/{appointmentId}": { "schema": "Appointment", "description": "Coleção de agendamentos" },
+    "/calculations/{calculationId}": { "schema": "Calculation", "description": "Histórico de cálculos" },
+    "/users/{userId}": { "schema": "User", "description": "Dados do usuário" },
+    "/monthlyPackages/{packageId}": { "schema": "MonthlyPackage", "description": "Coleção de pacotes mensais" }
+  }
+}
